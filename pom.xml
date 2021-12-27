@@ -4,14 +4,14 @@
 
   <groupId>org.honton.chas</groupId>
   <artifactId>bom-maven-plugin</artifactId>
-  <version>1.0.0</version>
+  <version>1.1.0</version>
   <packaging>maven-plugin</packaging>
 
   <name>BOM Creation Maven Plugin</name>
 
   <description>Create Bill of Materials from set of Jars or Tar</description>
   <url>https://github.com/chonton/bom-maven-plugin</url>
-  <inceptionYear>2022</inceptionYear>
+  <inceptionYear>2021</inceptionYear>
 
   <licenses>
     <license>

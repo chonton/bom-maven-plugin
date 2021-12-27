@@ -9,6 +9,7 @@ import java.net.http.HttpClient.Version;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import lombok.Data;
@@ -23,7 +24,7 @@ public class QueryCentral {
           .connectTimeout(Duration.ofSeconds(20))
           .build();
 
-  Dependency getDependency(String sha1) throws IOException, InterruptedException {
+  Dependency getDependency(Path jarPath, String sha1) throws IOException, InterruptedException {
     HttpRequest request =
         HttpRequest.newBuilder()
             .GET()
@@ -35,15 +36,40 @@ public class QueryCentral {
     String body = response.body();
     CentralWrapper wrapper = JSON.std.beanFrom(CentralWrapper.class, body);
     List<CentralDoc> docs = wrapper.response.docs;
-    if (docs != null && !docs.isEmpty()) {
-      CentralDoc doc = docs.get(0);
-      Dependency dependency = new Dependency();
-      dependency.setGroupId(doc.g);
-      dependency.setArtifactId(doc.a);
-      dependency.setVersion(doc.v);
-      return dependency;
+    return docs != null && !docs.isEmpty() ? bestMatch(jarPath, docs) : null;
+  }
+
+  private Dependency bestMatch(Path jarPath, List<CentralDoc> docs) {
+    CentralDoc doc = docs.get(0);
+    if (docs.size() > 1) {
+      // multiple matches; try to narrow by version or artifactId
+      String name = jarPath.getFileName().toString();
+      int dot = name.lastIndexOf('.');
+      int dash = name.lastIndexOf('-', dot);
+      String version = name.substring(dash + 1, dot);
+      String artifactId = dash > 0 ? name.substring(0, dash) : name;
+
+      int bestMatch = -1;
+      for (CentralDoc d : docs) {
+        int matchMetric = 0;
+        if (d.getA().equals(artifactId)) {
+          ++matchMetric;
+        }
+        if (d.getV().equals(version)) {
+          ++matchMetric;
+        }
+        if (bestMatch < matchMetric) {
+          doc = d;
+          bestMatch = matchMetric;
+        }
+      }
     }
-    return null;
+
+    Dependency dependency = new Dependency();
+    dependency.setGroupId(doc.g);
+    dependency.setArtifactId(doc.a);
+    dependency.setVersion(doc.v);
+    return dependency;
   }
 
   @Data

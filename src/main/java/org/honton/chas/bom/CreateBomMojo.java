@@ -5,7 +5,6 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -49,17 +48,26 @@ public class CreateBomMojo extends AbstractMojo {
   @Parameter(property = "bom.source")
   private String source;
 
-  /** The source directory or tar. */
-  @Parameter(property = "bom.bom", defaultValue = "pom.xml")
-  private String output;
+  /** The name of the Bill of Materials file */
+  @Parameter(property = "bom.bom", defaultValue = "bom.xml")
+  private String bom;
+
+  /**
+   * The directory to receive a copy of unknown jars
+   *
+   * @since 1.1.0
+   */
+  @Parameter(property = "bom.unknowns")
+  private String unknowns;
 
   private Sha1 sha1;
   private QueryCentral queryCentral = new QueryCentral();
   private SortedMap<String, Dependency> dependencies = new TreeMap<>();
+  private Path unknownsPath;
 
   public void execute() throws MojoExecutionException {
-
     try {
+      unknownsPath = unknowns != null ? Files.createDirectories(Path.of(unknowns)) : null;
       sha1 = new Sha1();
       if (source == null) {
         source = "";
@@ -78,17 +86,26 @@ public class CreateBomMojo extends AbstractMojo {
 
   private void findJars() throws IOException {
     try (Stream<Path> walk = Files.walk(Paths.get(source))) {
-      walk.filter(f -> f.getFileName().toString().endsWith(".jar")).forEach(this::extractJar);
+      walk.filter(f -> f.getFileName().toString().endsWith(".jar"))
+          .forEach(this::findDependencyOrCopyUnknown);
     }
   }
 
-  private void extractJar(Path jarPath) {
-    if (!mavenBuilt(jarPath)) {
-      findGAVfromSha1(jarPath);
+  private void findDependencyOrCopyUnknown(Path jarPath) {
+    if (!findGAVforJar(jarPath) && unknowns != null) {
+      try {
+        Files.copy(jarPath, createTmpFile(jarPath.toString()));
+      } catch (IOException e) {
+        getLog().error("Unable to copy " + jarPath + " to unknowns: " + e.getMessage(), e);
+      }
     }
   }
 
-  private boolean mavenBuilt(Path jarPath) {
+  private boolean findGAVforJar(Path jarPath) {
+    return findGAVfromPomProperties(jarPath) || findGAVfromSha1(jarPath);
+  }
+
+  private boolean findGAVfromPomProperties(Path jarPath) {
     try {
       try (JarFile jarFile = new JarFile(jarPath.toFile())) {
         return findPomProperties(jarFile);
@@ -124,21 +141,23 @@ public class CreateBomMojo extends AbstractMojo {
     addDependency(dependency);
   }
 
-  private void findGAVfromSha1(Path jarPath) {
+  private boolean findGAVfromSha1(Path jarPath) {
     try {
-      Dependency dependency = queryCentral.getDependency(sha1.getChecksum(jarPath));
+      Dependency dependency = queryCentral.getDependency(jarPath, sha1.getChecksum(jarPath));
       if (dependency != null) {
         addDependency(dependency);
+        return true;
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     } catch (IOException e) {
       getLog().error("Error while querying checksum of " + jarPath + " : " + e.getMessage(), e);
     }
+    return false;
   }
 
   private void addDependency(Dependency dependency) {
-    dependencies.put(dependency.getManagementKey()+':'+dependency.getVersion(), dependency);
+    dependencies.put(dependency.getManagementKey() + ':' + dependency.getVersion(), dependency);
   }
 
   private ArchiveInputStream getArchiveInputStream() throws IOException {
@@ -165,13 +184,20 @@ public class CreateBomMojo extends AbstractMojo {
       }
       String entryName = entry.getName();
       if (entryName.endsWith(".jar")) {
-        String name = entryName.substring(entryName.lastIndexOf('/') + 1);
-        Path jarFile = Files.createTempFile(name.substring(0, name.length()-4), ".jar");
+        Path jarFile = createTmpFile(entryName);
         Files.copy(archiveInputStream, jarFile, StandardCopyOption.REPLACE_EXISTING);
-        extractJar(jarFile);
-        Files.delete(jarFile);
+        if (findGAVforJar(jarFile)) {
+          Files.delete(jarFile);
+        }
       }
     }
+  }
+
+  private Path createTmpFile(String fullPath) throws IOException {
+    String name = fullPath.substring(fullPath.lastIndexOf('/') + 1);
+    return unknownsPath != null
+        ? unknownsPath.resolve(name)
+        : Files.createTempFile(name.substring(0, name.length() - 4), ".jar");
   }
 
   private void writeBom() throws IOException {
@@ -182,7 +208,7 @@ public class CreateBomMojo extends AbstractMojo {
     model.setVersion(version);
     dependencies.values().forEach(model::addDependency);
 
-    try (BufferedWriter writer = Files.newBufferedWriter(Path.of(output), StandardCharsets.UTF_8)) {
+    try (BufferedWriter writer = Files.newBufferedWriter(Path.of(bom), StandardCharsets.UTF_8)) {
       new MavenXpp3Writer().write(writer, model);
     }
   }

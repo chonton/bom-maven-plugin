@@ -3,7 +3,7 @@
 Create a BOM (bill of materials) from a set of jars or tar file.  The bom is formatted as a [pom](https://maven.apache.org/pom.html).
 
 ## Goals
-There is one goal: [extract](https://chonton.github.io/bom-maven-plugin/1.0.0/extract-mojo.html) creates
+There is one goal: [extract](https://chonton.github.io/bom-maven-plugin/1.1.0/extract-mojo.html) creates
 a bom from the jars found in a directory or tar.
 
 The specified source is recursively searched for files ending with '.jar'.  If the specified source
@@ -16,7 +16,8 @@ First, the jar is scanned for the existence of a 'META-INF/maven/**/pom.properti
 file exists, it contains the GAV.
 
 If pom.properties is not present, the sha1 hash of the jar is computed, and maven central is queried
-to determine the GAV of the jar.
+to determine the GAV of the jar.  If multiple jars with the same hash are returned from maven
+central, the best match based on the name of the jar will be used.
 
 Using the GAV of the jars, a pom.xml is generated with the jars as dependencies.
 
@@ -33,6 +34,7 @@ can be set from command line: -Dbom.source=image.tar
 | version    | 1.0.0-SNAPSHOT | The version for the bom                              |
 | bom        | pom.xml        | The output file                                      |
 | source     |                | The source to examine, Defaults to current directory |
+| unknowns   |                | The directory to receive a copy of unknown jars      |
 
 ## Requirements
 - Maven 3.5 or later
@@ -42,8 +44,8 @@ can be set from command line: -Dbom.source=image.tar
 
 ```shell
 # extract bill of materials from the jars in the current directory
-mvn org.honton.chas:bom-maven-plugin:1.0.0:extract -D bom.groupId=myGroup
+mvn org.honton.chas:bom-maven-plugin:1.1.0:extract -D bom.groupId=myGroup
 
 # extract bill of materials from image.tar
-mvn org.honton.chas:bom-maven-plugin:1.0.0:extract -D bom.source=image.tar
+mvn org.honton.chas:bom-maven-plugin:1.1.0:extract -D bom.source=image.tar
 ```
