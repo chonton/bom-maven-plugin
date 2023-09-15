@@ -1,0 +1,1 @@
+packageSearchIndex = [{"l":"All Packages","url":"allpackages-index.html"},{"l":"org.honton.chas.bom"},{"l":"org.honton.chas.bom_maven_plugin"}]
