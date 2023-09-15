@@ -28,7 +28,7 @@ public class QueryCentral {
     HttpRequest request =
         HttpRequest.newBuilder()
             .GET()
-            .uri(URI.create("https://search.maven.org/solrsearch/select?q=1:" + sha1))
+            .uri(URI.create("https://central.sonatype.com/solrsearch/select?q=1:" + sha1))
             .build();
 
     HttpResponse<String> response = client.send(request, BodyHandlers.ofString());

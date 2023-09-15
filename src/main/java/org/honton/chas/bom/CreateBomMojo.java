@@ -111,7 +111,7 @@ public class CreateBomMojo extends AbstractMojo {
         return findPomProperties(jarFile);
       }
     } catch (IOException e) {
-      getLog().error("Error during extraction of " + jarPath + " : " + e.getMessage(), e);
+      getLog().error("Error during extraction of " + jarPath + " : " + e.getMessage());
       return false;
     }
   }
@@ -182,12 +182,14 @@ public class CreateBomMojo extends AbstractMojo {
       if (entry == null) {
         break;
       }
-      String entryName = entry.getName();
-      if (entryName.endsWith(".jar")) {
-        Path jarFile = createTmpFile(entryName);
-        Files.copy(archiveInputStream, jarFile, StandardCopyOption.REPLACE_EXISTING);
-        if (findGAVforJar(jarFile)) {
-          Files.delete(jarFile);
+      if (!entry.isDirectory() && entry.getSize() != 0L) {
+        String entryName = entry.getName();
+        if (entryName.endsWith(".jar")) {
+          Path jarFile = createTmpFile(entryName);
+          Files.copy(archiveInputStream, jarFile, StandardCopyOption.REPLACE_EXISTING);
+          if (findGAVforJar(jarFile)) {
+            Files.delete(jarFile);
+          }
         }
       }
     }
