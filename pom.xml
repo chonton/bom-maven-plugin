@@ -70,7 +70,7 @@
     <maven.deploy.skip>true</maven.deploy.skip>
     <!-- use com.github.github:site-maven-plugin instead of org.apache.maven.plugins:maven-site-plugin -->
     <maven.site.deploy.skip>true</maven.site.deploy.skip>
-    <maven.version>3.6.3</maven.version>
+    <maven.version>3.9.6</maven.version>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
@@ -293,8 +293,8 @@
                 <requireMavenVersion>
                   <version>[${maven.version},)</version>
                 </requireMavenVersion>
-                <dependencyConvergence></dependencyConvergence>
-                <reactorModuleConvergence></reactorModuleConvergence>
+                <dependencyConvergence/>
+                <reactorModuleConvergence/>
               </rules>
             </configuration>
           </execution>
